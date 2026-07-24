@@ -8,6 +8,7 @@ services:
       APP_USERNAME: ${APP_USERNAME}
       APP_PASSWORD: ${APP_PASSWORD}
       SESSION_SECRET: ${SESSION_SECRET}
+      ESCROW_KEY: ${ESCROW_KEY}
       DATA_DIR: /app/data
     volumes:
       - ./data:/app/data
