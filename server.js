@@ -15,6 +15,9 @@ let vault;
 try{vault=JSON.parse(fs.readFileSync(VAULT_FILE,"utf8"));}catch{let legacy=[];try{legacy=JSON.parse(fs.readFileSync(LEGACY_FILE,"utf8"));}catch{}const p=hashPassword(ADMIN_PASSWORD),now=new Date().toISOString();vault={users:[{id:"admin",username:ADMIN_USERNAME,role:"admin",...p,createdAt:now}],clips:legacy.map(c=>({...c,ownerId:"admin",sharedWith:[]})),uploads:[]};}
 if(!Array.isArray(vault.users)||!Array.isArray(vault.clips))throw new Error("Invalid vault data");if(!Array.isArray(vault.uploads))vault.uploads=[];
 function save(){fs.writeFileSync(VAULT_FILE+".tmp",JSON.stringify(vault,null,2));fs.renameSync(VAULT_FILE+".tmp",VAULT_FILE);}
+// Server-held escrow supersedes the old recovery-key wrapper. If that wrapper has never
+// protected an encrypted clip, remove it so the next login can bootstrap escrow silently.
+let clearedUnusedRecoveryWrapper=false;for(const u of vault.users)if(u.vaultKey&&!u.escrowKey&&!vault.clips.some(c=>c.ownerId===u.id&&c.encrypted)){delete u.vaultKey;clearedUnusedRecoveryWrapper=true}if(clearedUnusedRecoveryWrapper)save();
 function userById(id){return vault.users.find(u=>u.id===id)}function userByName(username){return vault.users.find(u=>u.username.toLowerCase()===String(username).toLowerCase())}
 function publicUser(u,includeVaultKey=false){return {id:u.id,username:u.username,role:u.role,...(includeVaultKey?{vaultKey:u.vaultKey||null,escrowKey:u.escrowKey?unsealEscrow(u.escrowKey):null}:{}),createdAt:u.createdAt}}
 function sessionToken(userId){const expiry=Date.now()+1000*60*60*24*14,payload=`${userId}.${expiry}`,sig=crypto.createHmac("sha256",secret).update(payload).digest("base64url");return `${payload}.${sig}`}
